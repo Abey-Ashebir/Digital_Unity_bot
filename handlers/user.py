@@ -1,3 +1,5 @@
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, KeyboardButton, ReplyKeyboardMarkup, Update, WebAppInfo
 from telegram.ext import CallbackQueryHandler, CommandHandler, ContextTypes, ConversationHandler, MessageHandler, filters
 
@@ -19,10 +21,22 @@ def _extract_referrer_from_start(start_param: str):
 
 
 def build_launch_keyboard(user_id: int):
-    web_app_url_with_user = f"{WEB_APP_URL}?user_id={user_id}"
+    base_url = (WEB_APP_URL or "https://digital-unity-bot-amber.vercel.app/").strip()
+    if not base_url.startswith(("http://", "https://")):
+        base_url = f"https://{base_url}"
+
+    parts = urlsplit(base_url)
+    query_params = dict(parse_qsl(parts.query))
+    query_params["user_id"] = str(user_id)
+    query_params["source"] = "telegram"
+
+    normalized_path = parts.path.rstrip("/") + "/"
+    launch_url = urlunsplit((parts.scheme, parts.netloc, normalized_path, urlencode(query_params), ""))
+
     return InlineKeyboardMarkup(
         [
-            [InlineKeyboardButton("🚀 Launch Mini App", web_app=WebAppInfo(url=web_app_url_with_user))],
+            [InlineKeyboardButton("🚀 Launch Mini App", web_app=WebAppInfo(url=launch_url))],
+            [InlineKeyboardButton("🌐 Open in Browser", url=launch_url)],
         ]
     )
 

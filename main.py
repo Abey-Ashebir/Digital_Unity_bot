@@ -109,7 +109,10 @@ def main():
     
     # Start polling (this runs forever)
     # app.stop()
-    app.run_polling()
+    app.run_polling(
+        bootstrap_retries=10,
+        drop_pending_updates=True,
+    )
 
 
 if __name__ == "__main__":
