@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-// Use the current window's origin (works for localhost and ngrok)
-const API_BASE_URL = process.env.REACT_APP_API_URL || window.location.origin;
+// Use the configured API URL, falling back to the Railway backend
+const API_BASE_URL = process.env.REACT_APP_API_URL || "https://digital-unity-api-production.up.railway.app";
 console.log('API Base URL:', API_BASE_URL);
 
 const api = axios.create({
