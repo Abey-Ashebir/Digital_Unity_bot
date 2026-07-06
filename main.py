@@ -7,7 +7,8 @@ from telegram import Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler
 from config import TOKEN, ADMIN_ID
 
-# Print startup info for debugging
+# Print startup info for debuggingwsl -v
+
 print("=== BOT STARTING ===")
 print(f"Python version: {sys.version}")
 print(f"BOT_TOKEN set: {bool(os.getenv('BOT_TOKEN'))}")

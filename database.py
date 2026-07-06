@@ -34,8 +34,16 @@ def init_db():
         wallet_migrations_collection = db["wallet_migrations"]
         ensure_indexes()
     except Exception as e:
-        print(f"❌ MongoDB connection failed: {e}")
-        raise
+        print(f"⚠️ MongoDB connection failed: {e}")
+        client = None
+        db = None
+        users_collection = None
+        payments_collection = None
+        games_collection = None
+        winners_collection = None
+        announcements_collection = None
+        game_bonuses_collection = None
+        wallet_migrations_collection = None
 
 
 def ensure_indexes():
@@ -648,4 +656,7 @@ def process_retroactive_bonuses():
 
 
 # Initialize database on import
-init_db()
+try:
+    init_db()
+except Exception:
+    pass

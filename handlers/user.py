@@ -36,7 +36,6 @@ def build_launch_keyboard(user_id: int):
     return InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("🚀 Launch Mini App", web_app=WebAppInfo(url=launch_url))],
-            [InlineKeyboardButton("🌐 Open in Browser", url=launch_url)],
         ]
     )
 
