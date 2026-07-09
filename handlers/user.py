@@ -7,7 +7,7 @@ from config import ADMIN_ID, BOT_USERNAME, WEB_APP_URL
 from database import give_registration_bonus, init_wallet_for_user, mark_user_active, users_collection
 from services.game_service import upsert_user
 
-PHONE, LOCATION = range(2)
+REGISTRATION_START, PHONE, LOCATION = range(3)
 
 
 def _extract_referrer_from_start(start_param: str):
@@ -72,7 +72,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             [[InlineKeyboardButton("▶️ Start Registration", callback_data="begin_registration")]]
         ),
     )
-    return ConversationHandler.END
+    return REGISTRATION_START
 
 
 async def begin_registration_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -237,10 +237,11 @@ async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 registration_conv_handler = ConversationHandler(
     entry_points=[
+        CommandHandler("start", start),
         CommandHandler("register", start),
-        CallbackQueryHandler(begin_registration_callback, pattern="begin_registration"),
     ],
     states={
+        REGISTRATION_START: [CallbackQueryHandler(begin_registration_callback, pattern="begin_registration")],
         PHONE: [MessageHandler((filters.CONTACT | filters.TEXT) & ~filters.COMMAND, get_phone)],
         LOCATION: [MessageHandler((filters.LOCATION | filters.TEXT) & ~filters.COMMAND, get_location)],
     },

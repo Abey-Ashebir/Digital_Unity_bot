@@ -79,7 +79,6 @@ def main():
     app = Application.builder().token(TOKEN).build()
     
     # Add handlers
-    app.add_handler(CommandHandler("start", start))
     app.add_handler(registration_conv_handler)
     app.add_handler(pay_handler)
     app.add_handler(status_handler)
