@@ -7,17 +7,17 @@ services:
     startCommand: uvicorn web_server:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: BOT_TOKEN
-        value: 8664076774:AAHdZZvOPwgVKpJR0bTzOJ1P8Ynswv1jtYQ
+        value: 8664076774:AAGDJjjD2U6Hs7P_oZy4qIBBzPpnmX-s_Ho
       - key: ADMIN_ID
         value: 1296141395
       - key: BOT_USERNAME
-        value: "@DigitalUnity_bot"
+        value: "DigitalUnity_bot"
       - key: MONGO_URL
         value: mongodb+srv://abeyashebir:pOv4fI2dlf4j4UnM@cluster0.mryt6.mongodb.net/digital_unity
       - key: DB_NAME
         value: digital_unity
       - key: WEB_APP_URL
-        value: https://digital-unity-bot.vercel.app
+        value: https://digital-unity-bot-amber.vercel.app/
       - key: UPLOAD_DIR
         value: uploads
       - key: WINNER_TOP_LIMIT
@@ -45,7 +45,7 @@ services:
       - key: DB_NAME
         value: digital_unity
       - key: WEB_APP_URL
-        value: https://digital-unity-bot.vercel.app
+        value: https://digital-unity-bot-amber.vercel.app/
       - key: UPLOAD_DIR
         value: uploads
       - key: WINNER_TOP_LIMIT

@@ -46,7 +46,6 @@ app = FastAPI(title="Digital Unity Mini App API")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-    "https://digital-unity-bot.vercel.app",
     "https://digital-unity-bot-amber.vercel.app",
     "http://localhost:3000", 
     "http://localhost:5173"
@@ -1019,7 +1018,7 @@ async def root():
     """API root endpoint - frontend is on Vercel"""
     return JSONResponse({
         "message": "Digital Unity API Server",
-        "frontend_url": "https://digital-unity-bot.vercel.app",
+        "frontend_url": "https://digital-unity-bot-amber.vercel.app",
         "status": "running"
     })
 
@@ -1030,5 +1029,5 @@ async def catch_all(full_path: str):
         raise HTTPException(status_code=404)
     return JSONResponse({
         "message": "API server only",
-        "frontend_url": "https://digital-unity-bot.vercel.app"
+        "frontend_url": "https://digital-unity-bot-amber.vercel.app"
     })
