@@ -1,5 +1,7 @@
 import os
 import requests
+import tempfile
+import threading
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -42,6 +44,90 @@ from services.game_service import (
 
 # Initialize FastAPI app FIRST
 app = FastAPI(title="Digital Unity Mini App API")
+_bot_thread = None
+_bot_thread_started = False
+_bot_lock_handle = None
+_START_TELEGRAM_BOT = os.getenv("START_TELEGRAM_BOT", "1").strip().lower() not in {"0", "false", "no", "off"}
+
+
+def _acquire_bot_lock():
+    global _bot_lock_handle
+    if _bot_lock_handle is not None:
+        return True
+
+    lock_path = Path(tempfile.gettempdir()) / "digital-unity-bot.lock"
+    try:
+        if os.name == "nt":
+            import msvcrt
+            handle = open(lock_path, "a+")
+            try:
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            except PermissionError:
+                handle.close()
+                return False
+            _bot_lock_handle = handle
+            return True
+
+        import fcntl
+        fd = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            os.close(fd)
+            return False
+        _bot_lock_handle = fd
+        return True
+    except Exception as exc:
+        print(f"⚠️ Could not acquire Telegram bot lock: {exc}")
+        return False
+
+
+def _release_bot_lock():
+    global _bot_lock_handle
+    if _bot_lock_handle is None:
+        return
+
+    try:
+        if os.name == "nt":
+            _bot_lock_handle.close()
+        else:
+            import fcntl
+            fcntl.flock(_bot_lock_handle, fcntl.LOCK_UN)
+            os.close(_bot_lock_handle)
+    except Exception:
+        pass
+    _bot_lock_handle = None
+
+
+def _start_telegram_bot():
+    global _bot_thread, _bot_thread_started
+    if _bot_thread_started:
+        return
+    if not _START_TELEGRAM_BOT:
+        print("⚠️ Telegram bot startup disabled; skipping auto-start from web server.")
+        return
+    if not _acquire_bot_lock():
+        print("⚠️ Telegram bot already running in another process; skipping duplicate startup.")
+        return
+
+    _bot_thread_started = True
+
+    def runner():
+        try:
+            from main import main as run_bot
+            run_bot()
+        except Exception as exc:
+            print(f"❌ Failed to start Telegram bot: {exc}")
+            traceback.print_exc()
+            _release_bot_lock()
+
+    _bot_thread = threading.Thread(target=runner, daemon=True, name="telegram-bot")
+    _bot_thread.start()
+
+
+@app.on_event("startup")
+async def startup_event():
+    _start_telegram_bot()
 
 app.add_middleware(
     CORSMiddleware,

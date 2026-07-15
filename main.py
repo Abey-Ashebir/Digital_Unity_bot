@@ -1,8 +1,10 @@
 import os
 import asyncio
 import sys
+import tempfile
 import logging
 import traceback
+from pathlib import Path
 from telegram import Update
 from telegram.ext import Application, CallbackQueryHandler, CommandHandler
 from config import TOKEN, ADMIN_ID
@@ -50,6 +52,58 @@ logging.basicConfig(
     level=logging.INFO
 )
 
+_bot_lock_handle = None
+
+
+def acquire_bot_lock():
+    global _bot_lock_handle
+    if _bot_lock_handle is not None:
+        return True
+
+    lock_path = Path(tempfile.gettempdir()) / "digital-unity-bot.lock"
+    try:
+        if os.name == "nt":
+            import msvcrt
+            handle = open(lock_path, "a+")
+            try:
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            except PermissionError:
+                handle.close()
+                return False
+            _bot_lock_handle = handle
+            return True
+
+        import fcntl
+        fd = os.open(lock_path, os.O_RDWR | os.O_CREAT, 0o600)
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            os.close(fd)
+            return False
+        _bot_lock_handle = fd
+        return True
+    except Exception as exc:
+        print(f"⚠️ Could not acquire bot lock: {exc}")
+        return False
+
+
+def release_bot_lock():
+    global _bot_lock_handle
+    if _bot_lock_handle is None:
+        return
+
+    try:
+        if os.name == "nt":
+            _bot_lock_handle.close()
+        else:
+            import fcntl
+            fcntl.flock(_bot_lock_handle, fcntl.LOCK_UN)
+            os.close(_bot_lock_handle)
+    except Exception:
+        pass
+    _bot_lock_handle = None
+
+
 async def button_callback(update: Update, context):
     """Handle button clicks from main menu (non-admin buttons)"""
     query = update.callback_query
@@ -70,49 +124,64 @@ async def error_handler(update, context):
     if update and update.effective_message:
         await update.effective_message.reply_text("❌ An error occurred. Please try again later.")
 
+def build_bot_application():
+    if not TOKEN or TOKEN == "":
+        raise RuntimeError("❌ BOT_TOKEN is not set.")
+
+    print("🚀 Building application...")
+    bot_app = Application.builder().token(TOKEN).build()
+
+    # Add handlers
+    bot_app.add_handler(registration_conv_handler)
+    bot_app.add_handler(pay_handler)
+    bot_app.add_handler(status_handler)
+    bot_app.add_handler(profile_handler)
+    bot_app.add_handler(app_handler)
+    bot_app.add_handler(wallet_handler)
+    bot_app.add_handler(withdraw_handler)
+    bot_app.add_handler(join_channel_handler)
+
+    # Admin commands
+    bot_app.add_handler(announce_winner_handler)
+    bot_app.add_handler(check_payments_handler)
+    bot_app.add_handler(admin_withdrawals_handler)
+    bot_app.add_handler(admin_bonus_handler)
+
+    # Payment and callback handlers
+    bot_app.add_handler(photo_handler)
+    bot_app.add_handler(approve_handler)
+    bot_app.add_handler(reject_handler)
+    bot_app.add_handler(wallet_callback_handler)
+    bot_app.add_handler(CallbackQueryHandler(button_callback))
+    bot_app.add_error_handler(error_handler)
+
+    return bot_app
+
+
 def main():
     if not TOKEN or TOKEN == "":
         print("❌ BOT_TOKEN is not set!")
         raise SystemExit("❌ BOT_TOKEN is not set.")
-    
-    print("🚀 Building application...")
-    app = Application.builder().token(TOKEN).build()
-    
-    # Add handlers
-    app.add_handler(registration_conv_handler)
-    app.add_handler(pay_handler)
-    app.add_handler(status_handler)
-    app.add_handler(profile_handler)
-    app.add_handler(app_handler)
-    app.add_handler(wallet_handler)
-    app.add_handler(withdraw_handler)
-    app.add_handler(join_channel_handler)
-    
-    # Admin commands
-    app.add_handler(announce_winner_handler)
-    app.add_handler(check_payments_handler)
-    app.add_handler(admin_withdrawals_handler)
-    app.add_handler(admin_bonus_handler)
-    
-    # Payment and callback handlers
-    app.add_handler(photo_handler)
-    app.add_handler(approve_handler)
-    app.add_handler(reject_handler)
-    app.add_handler(wallet_callback_handler)
-    app.add_handler(CallbackQueryHandler(button_callback))
-    app.add_error_handler(error_handler)
-    
+
+    if not acquire_bot_lock():
+        print("⚠️ Another bot instance is already running; exiting to avoid duplicate polling.")
+        return
+
+    bot_app = build_bot_application()
+
     print(f"🚀 Bot Started! Admin ID: {ADMIN_ID}")
     print(f"📋 Admin Commands:")
     print(f"   • /check_payments - View all pending payments")
     print(f"   • /announce_winner - Announce winner manually")
-    
-    # Start polling (this runs forever)
-    # app.stop()
-    app.run_polling(
-        bootstrap_retries=10,
-        drop_pending_updates=True,
-    )
+
+    try:
+        # Start polling (this runs forever)
+        bot_app.run_polling(
+            bootstrap_retries=10,
+            drop_pending_updates=True,
+        )
+    finally:
+        release_bot_lock()
 
 
 if __name__ == "__main__":

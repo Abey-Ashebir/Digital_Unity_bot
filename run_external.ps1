@@ -23,6 +23,23 @@ function Update-ConfigUrl {
     }
 }
 
+function Stop-ExistingProcess {
+    param([string]$Name, [string]$CommandFragment)
+
+    $matches = Get-CimInstance Win32_Process | Where-Object {
+        $_.Name -like "$Name" -and $_.CommandLine -like "*$CommandFragment*"
+    }
+
+    foreach ($proc in $matches) {
+        try {
+            Stop-Process -Id $proc.ProcessId -Force
+            Write-Host "🛑 Stopped existing process: $($proc.ProcessId) $($proc.CommandLine)" -ForegroundColor Yellow
+        } catch {
+            Write-Host "⚠️ Could not stop process $($proc.ProcessId)" -ForegroundColor Yellow
+        }
+    }
+}
+
 function Get-NgrokUrl {
     $maxAttempts = 30
     $attempt = 0
@@ -110,6 +127,10 @@ if ($UseNgrok) {
 Write-Host ""
 Write-Host "Starting services with hot reload..." -ForegroundColor Green
 
+# Make sure any stale bot/web processes are not left behind
+Stop-ExistingProcess -Name "python.exe" -CommandFragment "main.py"
+Stop-ExistingProcess -Name "python.exe" -CommandFragment "uvicorn"
+
 # Start Vite frontend dev server (hot reload enabled)
 Write-Host "🎨 Starting React frontend (Vite - Hot Reload)..." -ForegroundColor Yellow
 $frontendCmd = "cd `"$PWD\frontend`"; npm run dev"
@@ -117,21 +138,18 @@ $frontendProcess = Start-Process powershell -ArgumentList "-NoExit", "-Command",
 
 Start-Sleep -Seconds 2
 
-# Start FastAPI backend with --reload for auto-restart on Python changes
-Write-Host "🚀 Starting FastAPI backend (--reload enabled)..." -ForegroundColor Yellow
-$backendCmd = "cd `"$PWD`"; python -m uvicorn web_server:app --host $HostAddress --port $Port --reload"
+# Start FastAPI backend without reload to avoid duplicate child processes during local testing
+Write-Host "🚀 Starting FastAPI backend..." -ForegroundColor Yellow
+$env:START_TELEGRAM_BOT = "0"
+$backendCmd = "cd `"$PWD`"; python -m uvicorn web_server:app --host $HostAddress --port $Port"
 $backendProcess = Start-Process powershell -ArgumentList "-NoExit", "-Command", $backendCmd -PassThru
 
 Start-Sleep -Seconds 3
 
-# Start bot with --reload flag if supported
-Write-Host "🤖 Starting Telegram bot (with auto-restart)..." -ForegroundColor Yellow
-$botCmd = "cd `"$PWD`"; python -m watchdog auto-restart --pattern `"*.py`" --recursive -- python main.py"
-if (-not (Test-CommandExists "watchdog")) {
-    Write-Host "⚠️ watchdog not installed. Bot will NOT auto-reload on changes." -ForegroundColor Yellow
-    Write-Host "   Install with: pip install watchdog" -ForegroundColor Yellow
-    $botCmd = "cd `"$PWD`"; python main.py"
-}
+# Start bot as a single polling process
+Write-Host "🤖 Starting Telegram bot..." -ForegroundColor Yellow
+$env:START_TELEGRAM_BOT = "1"
+$botCmd = "cd `"$PWD`"; python main.py"
 $botProcess = Start-Process powershell -ArgumentList "-NoExit", "-Command", $botCmd -PassThru
 
 Write-Host ""
