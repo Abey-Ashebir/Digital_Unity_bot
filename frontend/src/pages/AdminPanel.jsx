@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
-const API_BASE_URL = "https://digital-unity-api-production.up.railway.app";
+const API_BASE_URL = "https://digital-unity-bot.onrender.com";
 
 const AdminPanel = () => {
   const [activeTab, setActiveTab] = useState("pending");
