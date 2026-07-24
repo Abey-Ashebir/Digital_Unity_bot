@@ -34,7 +34,8 @@ function Stop-ExistingProcess {
         try {
             Stop-Process -Id $proc.ProcessId -Force
             Write-Host "🛑 Stopped existing process: $($proc.ProcessId) $($proc.CommandLine)" -ForegroundColor Yellow
-        } catch {
+        }
+        catch {
             Write-Host "⚠️ Could not stop process $($proc.ProcessId)" -ForegroundColor Yellow
         }
     }
@@ -53,7 +54,8 @@ function Get-NgrokUrl {
             if ($tunnel -and $tunnel.public_url) {
                 return $tunnel.public_url
             }
-        } catch {
+        }
+        catch {
             # ngrok API not ready yet
         }
         $attempt++
@@ -111,7 +113,8 @@ if ($UseNgrok) {
         Write-Host "   $WebAppUrl" -ForegroundColor Yellow
         Write-Host "========================================" -ForegroundColor Cyan
         Write-Host ""
-    } else {
+    }
+    else {
         Write-Host "⚠️ Could not auto-detect ngrok URL." -ForegroundColor Yellow
         $manualUrl = Read-Host "Enter ngrok HTTPS URL manually"
         if ($manualUrl) {
@@ -119,7 +122,8 @@ if ($UseNgrok) {
             $WebAppUrl = $manualUrl
         }
     }
-} else {
+}
+else {
     $WebAppUrl = "http://localhost:5173"
     Write-Host "⚠️ Ngrok not enabled. Using Vite dev server on port 5173" -ForegroundColor Yellow
 }
@@ -176,7 +180,8 @@ Write-Host "Press Ctrl+C to stop all services" -ForegroundColor Yellow
 # Wait for user to press Ctrl+C
 try {
     while ($true) { Start-Sleep -Seconds 1 }
-} finally {
+}
+finally {
     Write-Host "Stopping services..." -ForegroundColor Yellow
     if ($frontendProcess) { $frontendProcess.Kill() }
     if ($backendProcess) { $backendProcess.Kill() }
